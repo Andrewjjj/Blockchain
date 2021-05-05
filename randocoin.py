@@ -1,13 +1,17 @@
 import datetime
 import hashlib
 import json
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+import requests
+from uuid import uuid4
+from urllib.parse import urlparse
 
 class Blockchain:
-    
     def __init__(self):
         self.chain = []
+        self.transations = []
         self.create_block(proof = 1, previous_hash = '0')
+        self.nodes = set()
         
     def create_block(self, proof, previous_hash):
         block = {
@@ -15,8 +19,10 @@ class Blockchain:
             'timestamp': str(datetime.datetime.now()),
             'proof': proof,
             'previous_hash': previous_hash,
+            'transactions': self.transactions,
             'data': None, # TODO: Add Later.
             }
+        self.transations = []
         self.chain.append(block)
         return block
     
@@ -54,7 +60,31 @@ class Blockchain:
             block_index += 1
         return True
     
+    def add_transaction(self, sender, receiver, amount):
+        self.transactions.append({
+            'sender': sender,
+            'receiver': receiver,
+            'amount': amount,
+        })
+        previous_block = self.get_previous_block()
+        return previous_block['index'] + 1
 
+    def add_node(self, address):
+        parsed_url = urlparse(address)
+        self.nodes.add(parsed_url.netloc)
+
+    def replace_chain(self):
+        network = self.nodes
+        longest_chain = None
+        max_length = len(self.chain)
+        for nodes in network:
+            response = requests.get(f"http://{node}/get_chain")
+            if response.status_code == 200:
+                length = response.json()['length']
+                chain = response.json()['chain']
+                if length > max_length and self.is_chain_valid(chain):
+                    max_length = length
+                    longest_chain = chain
 
 app = Flask(__name__)
 # app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
