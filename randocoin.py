@@ -85,9 +85,16 @@ class Blockchain:
                 if length > max_length and self.is_chain_valid(chain):
                     max_length = length
                     longest_chain = chain
+        
+        if longest_chain:
+            self.chain = longest_chain
+            return True
+        return False
 
 app = Flask(__name__)
 # app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+
+node_address = str(uuid4()).replace('-', '')
 
 blockchain = Blockchain();
 
@@ -97,13 +104,15 @@ def mine_block():
     previous_proof = previous_block['proof']
     proof = blockchain.proof_of_work(previous_proof)
     previous_hash = blockchain.hash(previous_block)
+    blockchain.add_transaction(sender=node_address, receiver='Andrew', amount=10000)
     block = blockchain.create_block(proof, previous_hash)
     response = {
         'message': 'Block Mining Success',
         'index': block['index'],
         'timestamp': block['timestamp'],
         'proof': block['proof'],
-        'previous_hash': block['previous_hash']
+        'previous_hash': block['previous_hash'],
+        'transactions': block['transactions']
     }
     return jsonify(response), 200
 
@@ -115,5 +124,15 @@ def get_chain():
         'length': len(blockchain.chain)
     }
     return jsonify(response), 200
+
+@app.route('/add_transaction', methods=['POST'])
+def add_transaction():
+    json = requests.get_json()
+    transaction_keys = ['sender', 'receiver', 'amount']
+    if not all (key in json for key in transaction_keys):
+        return "Keys Missing", 400
+    index = blockchain.add_transaction(json['sender'], json['receiver'], json['amount'])
+    response = {'message': f'This transaction will be added to Block {index}'}
+    return response, 201
 
 app.run(host = '0.0.0.0', port = 5000)
